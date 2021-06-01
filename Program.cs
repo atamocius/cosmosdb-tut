@@ -44,8 +44,8 @@ namespace cosmosdb_tut
                 await db.AddItemsToContainer();
                 await db.QueryItems();
                 await db.ReplaceFamilyItem();
-                await db.DeleteFamilyItem();
-                await db.DeleteDatabaseAndCleanup();
+                // await db.DeleteFamilyItem();
+                // await db.DeleteDatabaseAndCleanup();
             }
             catch (CosmosException de)
             {

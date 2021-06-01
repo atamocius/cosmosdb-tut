@@ -4,6 +4,7 @@ using System.Configuration;
 using System.IO;
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
 
@@ -60,150 +61,8 @@ namespace cosmosdb_tut
         /// </summary>
         public async Task AddItemsToContainer()
         {
-            // Create a family object for the Andersen family
-            var andersenFamily = new Family
-            {
-                Id = "Andersen.1",
-                LastName = "Andersen",
-                Parents = new[]
-                {
-                    new Parent { FirstName = "Thomas" },
-                    new Parent { FirstName = "Mary Kay" },
-                },
-                Children = new[]
-                {
-                    new Child
-                    {
-                        FirstName = "Henriette Thaulow",
-                        Gender = "female",
-                        Grade = 5,
-                        Pets = new []
-                        {
-                            new Pet { GivenName = "Fluffy" },
-                        },
-                    },
-                },
-                Address = new Address
-                {
-                    State = "WA",
-                    County = "King",
-                    City = "Seattle",
-                },
-                IsRegistered = false,
-            };
-
-            try
-            {
-                // Read the item to see if it exists.
-                var andersenFamilyResponse =
-                    await this.container.ReadItemAsync<Family>(
-                        andersenFamily.Id,
-                        new PartitionKey(andersenFamily.LastName));
-
-                WriteLine(
-                    "Item in database with id: {0} already exists\n",
-                    andersenFamilyResponse.Resource.Id);
-            }
-            catch (CosmosException ex)
-                when (ex.StatusCode == HttpStatusCode.NotFound)
-            {
-                // Create an item in the container representing the Andersen
-                // family. Note we provide the value of the partition key for
-                // this item, which is "Andersen"
-                var andersenFamilyResponse =
-                    await this.container.CreateItemAsync(
-                        andersenFamily,
-                        new PartitionKey(andersenFamily.LastName));
-
-                // Note that after creating the item, we can access the body of
-                // the item with the Resource property off the ItemResponse. We
-                // can also access the RequestCharge property to see the amount
-                // of RUs consumed on this request.
-                WriteLine(
-                    "Created item in database with id: {0} Operation consumed {1} RUs.\n",
-                    andersenFamilyResponse.Resource.Id,
-                    andersenFamilyResponse.RequestCharge);
-            }
-
-            // Create a family object for the Wakefield family
-            var wakefieldFamily = new Family
-            {
-                Id = "Wakefield.7",
-                LastName = "Wakefield",
-                Parents = new[]
-                {
-                    new Parent {
-                        FamilyName = "Wakefield",
-                        FirstName = "Robin",
-                    },
-                    new Parent {
-                        FamilyName = "Miller",
-                        FirstName = "Ben",
-                    },
-                },
-                Children = new[]
-                {
-                    new Child
-                    {
-                        FamilyName = "Merriam",
-                        FirstName = "Jesse",
-                        Gender = "female",
-                        Grade = 8,
-                        Pets = new []
-                        {
-                            new Pet { GivenName = "Goofy" },
-                            new Pet { GivenName = "Shadow" },
-                        },
-                    },
-                    new Child
-                    {
-                        FamilyName = "Miller",
-                        FirstName = "Lisa",
-                        Gender = "female",
-                        Grade = 1,
-                    },
-                },
-                Address = new Address
-                {
-                    State = "NY",
-                    County = "Manhattan",
-                    City = "NY",
-                },
-                IsRegistered = true,
-            };
-
-            try
-            {
-                // Read the item to see if it exists
-                var wakefieldFamilyResponse =
-                    await this.container.ReadItemAsync<Family>(
-                        wakefieldFamily.Id,
-                        new PartitionKey(wakefieldFamily.LastName));
-
-                WriteLine(
-                    "Item in database with id: {0} already exists\n",
-                    wakefieldFamilyResponse.Resource.Id);
-            }
-            catch (CosmosException ex)
-                when (ex.StatusCode == HttpStatusCode.NotFound)
-            {
-                // Create an item in the container representing the Wakefield
-                // family. Note we provide the value of the partition key for
-                // this item, which is "Wakefield"
-                var wakefieldFamilyResponse =
-                    await this.container.CreateItemAsync(
-                        wakefieldFamily,
-                        new PartitionKey(wakefieldFamily.LastName));
-
-                // Note that after creating the item, we can access the body of
-                // the item with the Resource property off the ItemResponse. We
-                // can also access the RequestCharge property to see the amount
-                // of RUs consumed on this request.
-                WriteLine(
-                    "Created item in database with id: {0} Operation consumed {1} RUs.\n",
-                    wakefieldFamilyResponse.Resource.Id,
-                    wakefieldFamilyResponse.RequestCharge);
-            }
+            await this.AddItemToContainer2(DemoData.AndersenFamily);
+            await this.AddItemToContainer2(DemoData.WakefieldFamily);
         }
 
         /// <summary>
@@ -297,6 +156,80 @@ namespace cosmosdb_tut
 
             //Dispose of CosmosClient
             this.client.Dispose();
+        }
+
+        private async Task AddItemToContainer(Family family)
+        {
+            try
+            {
+                // Read the item to see if it exists.
+                var response =
+                    await this.container.ReadItemAsync<Family>(
+                        family.Id,
+                        new PartitionKey(family.LastName));
+
+                WriteLine(
+                    "Item in database with id: {0} already exists\n",
+                    response.Resource.Id);
+            }
+            catch (CosmosException ex)
+                when (ex.StatusCode == HttpStatusCode.NotFound)
+            {
+                // Create an item in the container representing the family. Note
+                // we provide the value of the partition key for this item,
+                // which is the last name
+                var response =
+                    await this.container.CreateItemAsync(
+                        family,
+                        new PartitionKey(family.LastName));
+
+                // Note that after creating the item, we can access the body of
+                // the item with the Resource property off the ItemResponse. We
+                // can also access the RequestCharge property to see the amount
+                // of RUs consumed on this request.
+                WriteLine(
+                    "Created item in database with id: {0} Operation consumed {1} RUs.\n",
+                    response.Resource.Id,
+                    response.RequestCharge);
+            }
+        }
+
+        private async Task AddItemToContainer2(Family family)
+        {
+            var pk = new PartitionKey(family.LastName);
+
+            var readResponse = await this.container.ReadItemStreamAsync(
+                family.Id,
+                pk);
+
+            var statusCode = readResponse.StatusCode;
+
+            using (readResponse)
+            {
+                if (readResponse.IsSuccessStatusCode)
+                {
+                    var f = await JsonSerializer.DeserializeAsync<Family>(
+                        readResponse.Content);
+
+                    WriteLine(
+                        "Item in database with id: {0} already exists\n",
+                        f.Id);
+
+                    return;
+                }
+            }
+
+            if (statusCode == HttpStatusCode.NotFound)
+            {
+                var createResponse = await this.container.CreateItemAsync(
+                    family,
+                    pk);
+
+                WriteLine(
+                    "Created item in database with id: {0} Operation consumed {1} RUs.\n",
+                    createResponse.Resource.Id,
+                    createResponse.RequestCharge);
+            }
         }
     }
 }
