@@ -1,4 +1,5 @@
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace cosmosdb_tut
 {
@@ -90,7 +91,7 @@ namespace cosmosdb_tut
 
     public class Family
     {
-        [JsonProperty(PropertyName = "id")]
+        [JsonPropertyName("id")]
         public string Id { get; set; }
         public string LastName { get; set; }
         public Parent[] Parents { get; set; }
@@ -98,7 +99,7 @@ namespace cosmosdb_tut
         public Address Address { get; set; }
         public bool IsRegistered { get; set; }
 
-        public override string ToString() => JsonConvert.SerializeObject(this);
+        public override string ToString() => JsonSerializer.Serialize(this);
     }
 
     public class Parent
